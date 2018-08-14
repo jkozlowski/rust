@@ -1924,16 +1924,27 @@ impl Step for LlvmTools {
         drop(fs::remove_dir_all(&image));
 
         // Prepare the image directory
-        let bindir = builder
+        let src_bindir = builder
             .llvm_out(target)
             .join("bin");
-        let dst = image.join("lib/rustlib")
+        let dst_bindir = image.join("lib/rustlib")
             .join(target)
             .join("bin");
-        t!(fs::create_dir_all(&dst));
+        t!(fs::create_dir_all(&dst_bindir));
         for tool in LLVM_TOOLS {
-            let exe = bindir.join(exe(tool, &target));
-            builder.install(&exe, &dst, 0o755);
+            let exe = src_bindir.join(exe(tool, &target));
+            builder.install(&exe, &dst_bindir, 0o755);
+        }
+
+        if builder.llvm_link_tools_dynamically(target) {
+            let src_libdir = builder
+                .llvm_out(target)
+                .join("lib");
+            let dst_libdir = image.join("lib/rustlib")
+                .join(target)
+                .join("lib");
+            t!(fs::create_dir_all(&dst_libdir));
+            builder.install(&src_libdir.join("libLLVM.so"), &dst_libdir, 0o644);
         }
 
         // Prepare the overlay
